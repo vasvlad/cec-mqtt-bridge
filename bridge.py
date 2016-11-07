@@ -27,6 +27,7 @@ config = {
     }
 }
 cache = {}
+cache_time = {}
 closing_down = 0
 
 
@@ -102,8 +103,9 @@ def mqqt_on_message(client, userdata, message):
 
 
 def mqtt_send(topic, value, retain=False):
-    if not retain or ((topic not in cache) or (cache[topic] != value)):
+    if not retain or ((topic not in cache) or (cache[topic] != value) or (time.time() - cache_time[topic] > 120)):
         cache[topic] = value
+        cache_time[topic] = time.time()
         mqtt_client.publish(topic, value, retain=retain)
 
 
@@ -122,6 +124,13 @@ def cec_on_message(level, time, message):
             else:
                 power = 'standby'
             mqtt_send(config['mqtt']['prefix'] + '/cec/power/' + str(id), power, True)
+
+            if (m.group(2) == '00') or (m.group(2) == '02'):
+                power = '1'
+            else:
+                power = '0'
+            mqtt_send(config['mqtt']['prefix'] + '/cec/power/status/' + str(id) + '/power/status/' , power, True)
+
             return
 
         # Send raw command to mqtt
