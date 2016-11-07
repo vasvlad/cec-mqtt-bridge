@@ -112,11 +112,6 @@ def cec_on_message(level, time, message):
 
     if level == cec.CEC_LOG_TRAFFIC:
 
-        # Send raw command to mqtt
-        m = re.search('>> ([0-9a-f:]+)', message)
-        if m:
-            mqtt_send(config['mqtt']['prefix'] + '/cec/rx', m.group(1))
-
         # Report Power Status
         m = re.search('>> ([0-9a-f])[0-9a-f]:90:([0-9a-f]{2})', message)
         if m:
@@ -128,6 +123,11 @@ def cec_on_message(level, time, message):
                 power = 'standby'
             mqtt_send(config['mqtt']['prefix'] + '/cec/power/' + str(id), power, True)
             return
+
+        # Send raw command to mqtt
+        m = re.search('>> ([0-9a-f:]+)', message)
+        if m:
+            mqtt_send(config['mqtt']['prefix'] + '/cec/rx', m.group(1))
 
         # Device Vendor ID
         m = re.search('>> ([0-9a-f])[0-9a-f]:87', message)
