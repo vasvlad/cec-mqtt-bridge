@@ -193,7 +193,7 @@ try:
     ### Parse config ###
     try:
         Config = ConfigParser.SafeConfigParser()
-        if not Config.read("config.ini"):
+        if not Config.read("/etc/bridgetv/config.ini"):
             raise Exception('Could not load config.ini')
 
         # Load all sections and overwrite default configuration
