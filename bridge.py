@@ -24,11 +24,15 @@ config = {
     },
     'ir': {
         'enabled': 0,
+    },
+   'counter': {
+        'count': 0,
     }
 }
 cache = {}
 cache_time = {}
 closing_down = 0
+trigger = 0
 
 
 def mqqt_on_connect(client, userdata, flags, rc):
@@ -91,8 +95,11 @@ def mqqt_on_message(client, userdata, message):
         elif cmd == 'cec/on':
             print " Sending on"
             id = int(message.payload)
-            cec_send('44:6D', id=id)
-            mqtt_send(config['mqtt']['prefix'] + '/cec/power/' + str(id), 'on', True)
+            if id == 0:
+                cec_send('36', id=0)
+            else:
+                cec_send('44:6D', id=0)
+#            mqtt_send(config['mqtt']['prefix'] + '/cec/power/status/' + str(0) + '/power/status' , str(id), True)
 
         else:
             print " Unknown command %s" % cmd
@@ -111,8 +118,22 @@ def mqtt_send(topic, value, retain=False):
 
 def cec_on_message(level, time, message):
     print message
+    config['counter']['count'] = config['counter']['count'] + 1
+
+    if level == cec.CEC_LOG_DEBUG:
+        m = re.search("Recorder 1 \(1\) -> Recorder 1 \(1\): POLL", message)
+        if m:
+            trigger = 1
+ 
+        m = re.search("TV \(0\): device status changed into 'not present'", message)
+        if m:
+            mqtt_send(config['mqtt']['prefix'] + '/cec/power/status/0/power/status' , '0', True)
+            config['counter']['count'] = 0 
 
     if level == cec.CEC_LOG_TRAFFIC:
+        if (config['counter']['count']  > 60):
+            mqtt_send(config['mqtt']['prefix'] + '/cec/power/status/0/power/status' , '0', True)
+            config['counter']['count'] = 0 
 
         # Report Power Status
         m = re.search('>> ([0-9a-f])[0-9a-f]:90:([0-9a-f]{2})', message)
@@ -129,8 +150,8 @@ def cec_on_message(level, time, message):
                 power = '1'
             else:
                 power = '0'
-            mqtt_send(config['mqtt']['prefix'] + '/cec/power/status/' + str(id) + '/power/status/' , power, True)
-
+            mqtt_send(config['mqtt']['prefix'] + '/cec/power/status/' + str(id) + '/power/status' , power, True)
+            config['counter']['count']  = 0 
             return
 
         # Send raw command to mqtt
@@ -144,6 +165,7 @@ def cec_on_message(level, time, message):
             id = int(m.group(1), 16)
             power = 'on'
             mqtt_send(config['mqtt']['prefix'] + '/cec/power/' + str(id), power, True)
+            config['counter']['count'] = 0 
             return
 
         # Report Physical Address
@@ -152,6 +174,7 @@ def cec_on_message(level, time, message):
             id = int(m.group(1), 16)
             power = 'on'
             mqtt_send(config['mqtt']['prefix'] + '/cec/power/' + str(id), power, True)
+            config['counter']['count'] = 0 
             return
 
 
